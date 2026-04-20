@@ -25,3 +25,39 @@ Projeyi indirdikten sonra, terminalinizi (veya komut satırını) açın ve proj
 
 ```bash
 pip install -r requirements.txt
+
+## 🚀 Doğrudan GitHub Üzerinden Kurulum (Önerilen)
+
+Projeyi bilgisayarınıza klonlamak ve izole bir Python ortamında güvenle çalıştırmak için işletim sisteminize uygun adımları izleyin:
+
+### 🍎 macOS ve 🐧 Linux İçin
+Terminali açın ve sırasıyla şu komutları çalıştırın:
+
+```bash
+# 1. Repoyu bilgisayarınıza klonlayın
+git clone [https://github.com/SENIN_KULLANICI_ADIN/scitara.git](https://github.com/SENIN_KULLANICI_ADIN/scitara.git)
+
+# 2. Proje klasörünün içine girin
+cd scitara
+
+# 3. Bağımsız bir sanal ortam oluşturun ve aktif edin
+python3 -m venv venv
+source venv/bin/activate
+
+# 4. Gerekli kütüphaneleri tek seferde kurun
+pip install -r requirements.txt
+
+# 1. Repoyu bilgisayarınıza klonlayın
+git clone [https://github.com/SENIN_KULLANICI_ADIN/scitara.git](https://github.com/SENIN_KULLANICI_ADIN/scitara.git)
+
+# 2. Proje klasörünün içine girin
+cd scitara
+
+# 3. Bağımsız bir sanal ortam oluşturun ve aktif edin
+python -m venv venv
+venv\Scripts\activate
+
+# 4. Gerekli kütüphaneleri tek seferde kurun
+pip install -r requirements.txt
+
+(Not: Windows sistemlerde activate komutunu çalıştırırken "yetki hatası" alırsanız, PowerShell'i yönetici olarak çalıştırıp Set-ExecutionPolicy Unrestricted -Force komutunu girmeniz yeterlidir.)
