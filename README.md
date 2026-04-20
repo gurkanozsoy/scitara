@@ -25,7 +25,7 @@ Terminali açın ve sırasıyla şu komutları çalıştırın:
 
 #### 1. Repoyu bilgisayarınıza klonlayın
 ```bash
-git clone [https://github.com/gurkanozsoy/scitara.git](https://github.com/gurkanozsoy/scitara.git)
+git clone https://github.com/gurkanozsoy/scitara.git
 ```
 
 #### 2. Proje klasörünün içine girin
@@ -50,7 +50,7 @@ Command Prompt (CMD) veya PowerShell'i açın ve sırasıyla şu komutları çal
 
 #### 1. Repoyu bilgisayarınıza klonlayın
 ```bash
-git clone [https://github.com/gurkanozsoy/scitara.git](https://github.com/gurkanozsoy/scitara.git)
+git clone https://github.com/gurkanozsoy/scitara.git
 ```
 
 #### 2. Proje klasörünün içine girin
