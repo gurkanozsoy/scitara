@@ -8,6 +8,8 @@ SciTara, akademik araştırma süreçlerini hızlandırmak için geliştirilmiş
 👉 Kurulum basittir
 👉 Terminal bilgisi minimum seviyede yeterlidir
 
+![SciTara Screenshot](screenshot.jpg)
+
 ---
 
 ## ✨ Özellikler
