@@ -1,96 +1,192 @@
 # 📚 SciTara: Açık Kaynaklı Akademik Veri Çekme Aracı
 
-SciTara'yı akademik araştırma yaptığım zamanlar için yazmıştım. Tamamen açık kaynaklı ve ücretsiz bir Python aracıdır. Web of Science veya Scopus gibi ücretli/kurumsal abonelik gerektiren sistemlere alternatif olarak; **OpenAlex**, **Crossref** ve **arXiv** üzerinden saniyeler içinde yüzlerce makale verisini çeker ve düzenli bir Excel tablosu olarak size sunar.
+SciTara, akademik araştırma süreçlerini hızlandırmak için geliştirilmiş ücretsiz ve açık kaynaklı bir Python aracıdır.
 
-Hiçbir API anahtarına veya aylık aboneliğe ihtiyacınız yoktur.
+**OpenAlex**, **Crossref** ve **arXiv** üzerinden saniyeler içinde makale verilerini çeker ve düzenli bir Excel dosyası olarak sunar.
 
-## ✨ Öne Çıkan Özellikler
-
-- **Çoklu Veri Tabanı Desteği:**
-  - `scitara.py`: OpenAlex (Kapsamlı) ve Crossref (Geleneksel) destekleri.
-  - `scitara2.py`: arXiv (Ön Baskı / Preprint) desteği.
-- **Etkileşimli Terminal Arayüzü (CLI):** Kodun içine girmeden arama terimini, çekilecek makale sayısını ve e-posta adresinizi doğrudan konsol ekranından girebilirsiniz.
-- **Otomatik Dil Tespiti:** Veri tabanları makalenin dilini vermese bile, NLP (Doğal Dil İşleme) kullanarak özetten veya başlıktan makalenin dilini kendi kendine anlar.
-- **Akıllı Hata Yönetimi:** Eksik dergi adları, hatalı özet yapıları veya JSON uyuşmazlıkları sistem tarafından otomatik tolere edilir; program çökmez.
-- **Dinamik Excel Çıktısı:** Veriler doğrudan `Yayın Yılı`, `Dergi Adı`, `Makale Başlığı`, `Özet`, `URL` gibi filtrelenebilir başlıklarla şık bir `.xlsx` dosyasına dönüşür. Dosya adları aradığınız terime göre otomatik isimlendirilir.
+👉 API anahtarı gerekmez
+👉 Kurulum basittir
+👉 Terminal bilgisi minimum seviyede yeterlidir
 
 ---
 
-## 🛠️ Kurulum (Önerilen Yöntem)
+## ✨ Özellikler
 
-Projeyi bilgisayarınıza klonlamak ve izole bir Python sanal ortamında (virtual environment) güvenle çalıştırmak için işletim sisteminize uygun adımları izleyin. Bilgisayarınızda **Python 3.7 veya üzeri** bir sürüm kurulu olmalıdır (Python 3.12 önerilir).
+* Çoklu veri kaynağı (OpenAlex, Crossref, arXiv)
+* Terminal üzerinden kolay kullanım
+* Otomatik dil tespiti (NLP)
+* Hata toleranslı veri çekme
+* Excel (.xlsx) çıktı
 
-### 🍎 macOS ve 🐧 Linux İçin
-Terminali açın ve sırasıyla şu komutları çalıştırın:
+---
 
-#### 1. Repoyu bilgisayarınıza klonlayın
+## ⚡ Hızlı Başlangıç
+
+### 1. Repoyu indir
+
 ```bash
 git clone https://github.com/gurkanozsoy/scitara.git
 ```
 
-#### 2. Proje klasörünün içine girin
+### 2. Klasöre gir
+
 ```bash
 cd scitara
 ```
 
-#### 3. Bağımsız bir sanal ortam oluşturun ve aktif edin
+### 3. Sanal ortam oluştur
+
 ```bash
 python3 -m venv venv
+```
+
+### 4. Ortamı aktif et (macOS / Linux)
+
+```bash
 source venv/bin/activate
 ```
 
-#### 4. Gerekli kütüphaneleri tek seferde kurun
+### 5. Paketleri kur
+
 ```bash
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
-### 🪟 Windows İçin
+---
 
-Command Prompt (CMD) veya PowerShell'i açın ve sırasıyla şu komutları çalıştırın:
+## 🛠️ Kurulum (Detaylı)
 
-#### 1. Repoyu bilgisayarınıza klonlayın
+### 🍎 macOS
+
+Python kontrol:
+
+```bash
+python3 --version
+```
+
+Python yoksa:
+
+```bash
+brew install python
+```
+
+Kurulum:
+
 ```bash
 git clone https://github.com/gurkanozsoy/scitara.git
-```
-
-#### 2. Proje klasörünün içine girin
-```bash
 cd scitara
-```
-
-#### 3. Bağımsız bir sanal ortam oluşturun ve aktif edin
-```bash
 python3 -m venv venv
 source venv/bin/activate
+python -m pip install -r requirements.txt
 ```
 
-#### 4. Gerekli kütüphaneleri tek seferde kurun
+---
+
+### 🐧 Linux (Ubuntu / Debian)
+
+Gerekli paketler:
+
 ```bash
-pip install -r requirements.txt
+sudo apt update
+sudo apt install python3 python3-venv python3-pip -y
 ```
+
+Kurulum:
+
+```bash
+git clone https://github.com/gurkanozsoy/scitara.git
+cd scitara
+python3 -m venv venv
+source venv/bin/activate
+python -m pip install -r requirements.txt
+```
+
+---
+
+### 🪟 Windows
+
+Python kontrol:
+
+```bash
+python --version
+```
+
+Kurulum:
+
+```bash
+git clone https://github.com/gurkanozsoy/scitara.git
+cd scitara
+python -m venv venv
+venv\Scripts\activate
+python -m pip install -r requirements.txt
+```
+
+---
 
 ## 🚀 Kullanım
 
-SciTara'yı kullanmak çok basittir. Proje klasöründeyken ihtiyacınıza göre aşağıdaki dosyalardan birini çalıştırın:
-
-Genel Literatür (OpenAlex/Crossref) Araması İçin:
+### Genel makale arama
 
 ```bash
 python scitara.py
 ```
 
-Ön Baskı (arXiv) Araması İçin:
+### arXiv arama
 
 ```bash
 python scitara2.py
 ```
 
-Komutu çalıştırdığınızda araç size sırasıyla aramak istediğiniz terimi ve kaç makale çekmek istediğinizi soracaktır. İşlem saniyeler içinde tamamlanır ve bulunduğunuz klasöre (örneğin arama teriminiz "string theory" ise) string_theory_sonuclar.xlsx formatında bir dosya oluşturulur.
+---
 
-## 🤝Katkıda Bulunma
+## ❗ Sorun Giderme
 
-SciTara, bilginin açık ve erişilebilir olması gerektiğine inananlar için geliştirilmiştir. Projeyi istediğiniz gibi geliştirip kullanabilirsiniz.
+### pip çalışmıyorsa
 
-## Geliştiriciler İçin Not:
+```bash
+python3 -m pip install -r requirements.txt
+```
 
-**Lütfen bot trafiğini yönetmek ve akademik sunucuları yormamak için kodda yer alan API bekleme (time.sleep) sürelerine ve e-posta tanımlı HTTP Header (Polite Pool) yapılarına sadık kalın.**
+---
+
+### python bulunamadıysa
+
+```bash
+python3 scitara.py
+```
+
+---
+
+### Sanal ortam aktif değilse
+
+macOS / Linux:
+
+```bash
+source venv/bin/activate
+```
+
+Windows:
+
+```bash
+venv\Scripts\activate
+```
+
+---
+
+## 🤝 Katkı
+
+Projeyi fork’layabilir, geliştirebilir ve pull request gönderebilirsin.
+
+---
+
+## ⚠️ Geliştirici Notu
+
+* time.sleep kaldırma
+* API’leri agresif kullanma
+* HTTP header yapısını bozma
+
+---
+
+## ⭐ Destek
+
+Projeyi beğendiysen yıldız bırak ⭐
