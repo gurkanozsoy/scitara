@@ -2,6 +2,9 @@ import requests
 import pandas as pd
 from dataclasses import dataclass, asdict
 from langdetect import detect, LangDetectException
+import xml.etree.ElementTree as ET
+import time
+import re
 
 # 1. Veri Yapısının Tanımlanması
 @dataclass
@@ -15,17 +18,16 @@ class AcademicArticle:
     abstract_text: str
     article_url: str
 
-class AcademicDatabaseScraper:
-    # E-posta parametresi zorunlu hale getirildi
+class SciTaraScraper:
     def __init__(self, user_email: str, use_proxy: bool = False, proxy_url: str = ""):
         self.session = requests.Session()
         
         if use_proxy and proxy_url:
             self.session.proxies = {"http": proxy_url, "https": proxy_url}
             
-        # Kullanıcının girdiği e-posta HTTP başlığına dinamik olarak ekleniyor
+        # Tüm isteklerde ortak kullanılacak e-posta tanımlı başlık bilgisi
         self.session.headers.update({
-            "User-Agent": f"SciTara/1.0 (mailto:{user_email}; Python 3.12)"
+            "User-Agent": f"SciTara/2.0 (mailto:{user_email}; Python 3.12)"
         })
 
     def detect_language(self, text: str) -> str:
@@ -61,6 +63,8 @@ class AcademicDatabaseScraper:
                 
                 title = item.get("title", ["Bilinmiyor"])[0] if item.get("title") else "Bilinmiyor"
                 abstract = item.get("abstract", "Özet bulunamadı.")
+                # Crossref'teki abstract alanındaki HTML etiketlerini temizleme
+                abstract = re.sub(r'<[^>]+>', '', abstract)
                 doc_type = item.get("type", "Bilinmiyor")
                 article_url = item.get("URL", "URL bulunamadı.")
 
@@ -78,7 +82,7 @@ class AcademicDatabaseScraper:
                 ))
             return articles
         except requests.exceptions.RequestException as e:
-            print(f"Crossref bağlantı hatası: {e}")
+            print(f"❌ Crossref bağlantı hatası: {e}")
             return []
 
     def search_openalex(self, query: str, max_results: int = 30) -> list[AcademicArticle]:
@@ -114,7 +118,8 @@ class AcademicDatabaseScraper:
                     for word, positions in abstract_idx.items():
                         for pos in positions:
                             words[pos] = word
-                    abstract = " ".join(words)
+                    # Boş stringleri temizleyip cümleyi oluşturma
+                    abstract = " ".join([w for w in words if w])
 
                 api_language = item.get("language")
                 language = api_language.upper() if api_language else "BILINMIYOR"
@@ -129,11 +134,98 @@ class AcademicDatabaseScraper:
                 ))
             return articles
         except requests.exceptions.RequestException as e:
-            print(f"OpenAlex bağlantı hatası: {e}")
+            print(f"❌ OpenAlex bağlantı hatası: {e}")
+            return []
+
+    def search_arxiv(self, query: str, max_results: int = 30) -> list[AcademicArticle]:
+        """arXiv API'si üzerinden veri çeker."""
+        url = "http://export.arxiv.org/api/query"
+        params = {"search_query": f"all:{query}", "start": 0, "max_results": max_results}
+        articles: list[AcademicArticle] = []
+        
+        try:
+            response = self.session.get(url, params=params, timeout=20)
+            response.raise_for_status()
+            root = ET.fromstring(response.content)
+            ns = {'atom': 'http://www.w3.org/2005/Atom'}
+            
+            for entry in root.findall('atom:entry', ns):
+                title_elem = entry.find('atom:title', ns)
+                title = title_elem.text.strip().replace('\n', ' ') if title_elem is not None else "Bilinmiyor"
+                
+                summary_elem = entry.find('atom:summary', ns)
+                abstract = summary_elem.text.strip().replace('\n', ' ') if summary_elem is not None else "Özet bulunamadı."
+                
+                published_elem = entry.find('atom:published', ns)
+                pub_year = published_elem.text[:4] if published_elem is not None else "Bilinmiyor"
+                
+                journal_name = "arXiv Preprint"
+                doc_type = "Preprint / Ön Baskı"
+                
+                id_elem = entry.find('atom:id', ns)
+                article_url = id_elem.text if id_elem is not None else "URL bulunamadı."
+                
+                text_to_analyze = abstract if abstract != "Özet bulunamadı." else title
+                language = self.detect_language(text_to_analyze)
+
+                articles.append(AcademicArticle(
+                    database_name="arXiv", document_type=doc_type, publication_year=pub_year,
+                    publication_language=language, journal_name=journal_name, article_title=title,
+                    abstract_text=abstract, article_url=article_url
+                ))
+            
+            time.sleep(3) # arXiv nezaket kuralı, aşırı yüklenmemek için.
+            return articles
+            
+        except requests.exceptions.RequestException as e:
+            print(f"❌ arXiv ağına bağlanırken bir hata oluştu: {e}")
+            return []
+        except ET.ParseError as e:
+            print(f"❌ arXiv sunucusundan gelen XML verisi ayrıştırılamadı: {e}")
+            return []
+
+    def search_europepmc(self, query: str, max_results: int = 30) -> list[AcademicArticle]:
+        """Europe PMC REST API'si üzerinden veri çeker (Tıp ve Yaşam Bilimleri)."""
+        url = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
+        params = {"query": query, "format": "json", "resultType": "core", "pageSize": max_results}
+        articles: list[AcademicArticle] = []
+        
+        try:
+            response = self.session.get(url, params=params, timeout=20)
+            response.raise_for_status()
+            items = response.json().get("resultList", {}).get("result", [])
+            
+            for item in items:
+                pub_year = str(item.get("pubYear", "Bilinmiyor"))
+                title = item.get("title", "Bilinmiyor")
+                journal_name = item.get("journalTitle", "Bilinmiyor")
+                doc_type = "Journal Article"
+                
+                abstract = item.get("abstractText", "Özet bulunamadı.")
+                abstract = re.sub(r'<[^>]+>', '', abstract) # HTML etiketlerini temizleme
+                
+                doi = item.get("doi")
+                article_url = f"https://doi.org/{doi}" if doi else "URL bulunamadı."
+                
+                api_language = item.get("language")
+                language = api_language.upper() if api_language else "BILINMIYOR"
+                
+                if language == "BILINMIYOR" or not language:
+                    language = self.detect_language(abstract if abstract != "Özet bulunamadı." else title)
+
+                articles.append(AcademicArticle(
+                    database_name="Europe PMC", document_type=doc_type, publication_year=pub_year,
+                    publication_language=language, journal_name=journal_name, article_title=title,
+                    abstract_text=abstract, article_url=article_url
+                ))
+            return articles
+            
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Europe PMC ağına bağlanırken bir hata oluştu: {e}")
             return []
 
     def export_to_excel(self, data: list[AcademicArticle], filename: str) -> None:
-        """Toplanan verileri Excel'e dönüştürür."""
+        """Toplanan verileri standart formatta Excel'e dönüştürür."""
         if not data:
             print("Dışa aktarılacak veri bulunamadı.")
             return
@@ -152,37 +244,76 @@ class AcademicDatabaseScraper:
         except Exception as e:
             print(f"\n❌ Excel dosyası oluşturulurken hata meydana geldi: {e}\n")
 
+
 # Kodu Çalıştırma Bloğu (Terminal Arayüzü)
 if __name__ == "__main__":
-    print("\n" + "="*50)
-    print(" 🚀 SciTara: Akademik Literatür Tarama Aracı")
-    print("="*50 + "\n")
+    print("\n" + "="*55)
+    print(" 🚀 SciTara: Gelişmiş Akademik Literatür Tarama Aracı")
+    print("="*55 + "\n")
     
-    # Kullanıcıdan bilgileri dinamik olarak alıyoruz
-    kullanici_eposta = input("Lütfen e-posta adresinizi girin (Sunucu limitleri için gereklidir): ").strip()
+    # 1. Bilgilerin alınması
+    kullanici_eposta = input("Lütfen e-posta adresinizi girin (API limitleri için): ").strip()
     if not kullanici_eposta:
-        kullanici_eposta = "bilinmeyen@scitara.com" # Boş bırakılırsa varsayılan
+        kullanici_eposta = "bilinmeyen@scitara.com"
         
-    arama_terimi = input("Aramak istediğiniz terimi girin (Örn: quantum computing): ").strip()
+    arama_terimi = input("Aramak istediğiniz terimi girin (Örn: machine learning): ").strip()
     if not arama_terimi:
         print("❌ Arama terimi boş bırakılamaz. Çıkış yapılıyor...")
         exit()
         
     try:
-        istenen_sonuc = input("Kaç makale çekmek istersiniz? (Varsayılan 30, enter'a basıp geçebilirsiniz): ").strip()
+        istenen_sonuc = input("Kaç makale çekmek istersiniz? (Varsayılan 30, enter ile geçebilirsiniz): ").strip()
         istenen_sonuc_sayisi = int(istenen_sonuc) if istenen_sonuc else 30
     except ValueError:
         print("⚠️ Geçersiz sayı girdiniz. Varsayılan olarak 30 makale çekilecek.")
         istenen_sonuc_sayisi = 30
 
-    # Sınıfı kullanıcının girdiği e-posta ile başlat
-    scraper = AcademicDatabaseScraper(user_email=kullanici_eposta)
+    # 2. Tarama platformunun seçilmesi
+    print("\n" + "-"*40)
+    print(" 📚 Hangi veri tabanında tarama yapılsın?")
+    print("-" * 40)
+    print("1 - Crossref (Genel Akademik)")
+    print("2 - OpenAlex (Geniş Kapsamlı)")
+    print("3 - arXiv (Ön Baskı: Fizik, Mat, Bilgisayar Bil.)")
+    print("4 - Europe PMC (Tıp, Biyoloji ve Yaşam Bilimleri)")
+    print("5 - Hepsinde Tara (Belirtilen sayı kadar her birinden çeker)")
     
-    print(f"\n⏳ '{arama_terimi}' terimi için veri tabanında sorgu başlatılıyor. Lütfen bekleyin...")
+    secim = input("\nSeçiminiz (1/2/3/4/5): ").strip()
     
-    # Varsayılan olarak daha kapsamlı olan OpenAlex üzerinden arar. 
-    # Dileyenler alttaki kodu scraper.search_crossref olarak değiştirebilir.
-    sonuclar = scraper.search_openalex(query=arama_terimi, max_results=istenen_sonuc_sayisi)
+    scraper = SciTaraScraper(user_email=kullanici_eposta)
+    sonuclar = []
+
+    print(f"\n⏳ '{arama_terimi}' terimi için sorgu başlatılıyor. Lütfen bekleyin...\n")
+
+    # 3. Seçime göre işlemlerin yürütülmesi
+    if secim == "1":
+        print("🔎 Crossref taranıyor...")
+        sonuclar.extend(scraper.search_crossref(arama_terimi, istenen_sonuc_sayisi))
+    elif secim == "2":
+        print("🔎 OpenAlex taranıyor...")
+        sonuclar.extend(scraper.search_openalex(arama_terimi, istenen_sonuc_sayisi))
+    elif secim == "3":
+        print("🔎 arXiv taranıyor...")
+        sonuclar.extend(scraper.search_arxiv(arama_terimi, istenen_sonuc_sayisi))
+    elif secim == "4":
+        print("🔎 Europe PMC taranıyor...")
+        sonuclar.extend(scraper.search_europepmc(arama_terimi, istenen_sonuc_sayisi))
+    elif secim == "5":
+        print("🔎 Crossref taranıyor...")
+        sonuclar.extend(scraper.search_crossref(arama_terimi, istenen_sonuc_sayisi))
+        print("🔎 OpenAlex taranıyor...")
+        sonuclar.extend(scraper.search_openalex(arama_terimi, istenen_sonuc_sayisi))
+        print("🔎 arXiv taranıyor...")
+        sonuclar.extend(scraper.search_arxiv(arama_terimi, istenen_sonuc_sayisi))
+        print("🔎 Europe PMC taranıyor...")
+        sonuclar.extend(scraper.search_europepmc(arama_terimi, istenen_sonuc_sayisi))
+    else:
+        print("⚠️ Hatalı seçim yaptınız. Varsayılan olarak 'OpenAlex' taranıyor...")
+        sonuclar.extend(scraper.search_openalex(arama_terimi, istenen_sonuc_sayisi))
+
+    # 4. Verilerin dışa aktarımı
+    # Dosya adındaki geçersiz karakterleri temizleme
+    guvenli_dosya_adi = "".join([c if c.isalnum() else "_" for c in arama_terimi]).strip("_").lower()
+    dosya_adi = f"scitara_{guvenli_dosya_adi}_sonuclar.xlsx"
     
-    dosya_adi = arama_terimi.replace(" ", "_").lower() + "_sonuclar.xlsx"
     scraper.export_to_excel(data=sonuclar, filename=dosya_adi)
