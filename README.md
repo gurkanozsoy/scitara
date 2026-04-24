@@ -132,13 +132,6 @@ python -m pip install -r requirements.txt
 ```bash
 python scitara.py
 ```
-
-### arXiv arama
-
-```bash
-python scitara2.py
-```
-
 ---
 
 ## ❗ Sorun Giderme
